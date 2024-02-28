@@ -1,0 +1,29 @@
+pragma ever-solidity 0.62.0;
+
+import "../~Platform.tsol";
+
+library PlatformUtils {
+    function buildInitData(
+        address _root,
+        TvmCell _platformCode,
+        TvmCell _params
+    ) internal returns (TvmCell) {
+        return tvm.buildStateInit({
+            contr: Platform,
+            varInit: {
+                root: _root,
+                params: _params
+            },
+            pubkey: 0,
+            code: _platformCode
+        });
+    }
+
+    function buildContractToDeployParams(uint64 _nonce) public returns (TvmCell) {
+        TvmBuilder builder;
+        
+        builder.store(_nonce);
+
+        return builder.toCell();
+    }
+}

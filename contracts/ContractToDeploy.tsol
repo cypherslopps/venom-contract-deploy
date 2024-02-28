@@ -1,0 +1,89 @@
+pragma ever-solidity 0.62.0;
+
+import "broxus-ton-tokens-contracts/contracts/libraries/TokenMsgFlag.tsol";
+import "./libraries/PlatformUtils.tsol";
+
+// Factory Contract
+
+contract DexVshib {
+    uint64 static _nonce;
+    
+    address private _root;
+    uint32 _version;
+
+    TvmCell public platformCode;
+    address public beneficiaryAddress;
+
+    constructor() public { tvm.accept(); }
+
+    // *********** Getters ************
+
+    function getNonce() public view returns (uint64) {
+        return _nonce;
+    }
+
+    function getBeneficiaryAddress() public view responsible returns (address) {
+        return {
+            value: 0,
+            flag: TokenMsgFlag.REMAINING_GAS,
+            bounce: false
+        } beneficiaryAddress;
+    }
+
+    // ********** Setters **********
+
+    function setBeneficiaryAddress(address _beneficiary) public {
+        require(_beneficiary.value != 0, 105);
+        beneficiaryAddress = _beneficiary;
+    }
+
+    
+    // Upgrade
+    function upgrade(
+        TvmCell _newCode,
+        optional(uint32) newVersion,
+        address remainingGasTo
+    ) external {
+        TvmCell params = abi.encode(_nonce);
+        
+        uint32 currentVersion = newVersion.hasValue() ? newVersion.get() : _version + 1;
+
+        TvmBuilder builder;
+
+        builder.store(_root);
+        builder.store(params);
+        builder.store(_version);
+        builder.store(currentVersion);
+        builder.store(platformCode);
+        builder.store(remainingGasTo);
+
+        tvm.setcode(_newCode);
+        tvm.setCurrentCode(_newCode);
+
+        onCodeUpgrade(builder.toCell());
+    }
+
+    function onCodeUpgrade(TvmCell _data) private {
+        tvm.rawReserve(1 ever, 0);
+        tvm.resetStorage();
+
+        TvmSlice slice = _data.toSlice();
+
+        (
+            address root,
+            /* params */,
+            /* uint32 previousVersion */,
+            uint32 currentVersion
+        ) = slice.decode(
+            address,
+            TvmCell,
+            uint32,
+            uint32
+        );
+
+        _root = root;
+        _version = currentVersion;
+        _nonce = slice.loadRefAsSlice().decode(uint64);
+        platformCode = slice.loadRef();
+    }
+}

@@ -1,0 +1,36 @@
+pragma ever-solidity ^0.62.0;
+
+contract Platform {
+   address static root;
+   TvmCell static params;
+
+   constructor(TvmCell code, uint32 newVersion, address remainingGasTo) public {
+    if(msg.sender == root) {
+        initialize(code, newVersion, remainingGasTo);
+    } else {
+        remainingGasTo.transfer({
+            value: 0,
+            flag: 128,
+            bounce: false
+        });
+    }
+   }
+
+   function initialize(TvmCell code, uint32 newVersion, address remainingGasTo) private {
+    TvmCell data = abi.encode(
+        root,
+        params,
+        uint(0),
+        newVersion,
+        tvm.code(),
+        remainingGasTo
+    );
+
+    tvm.setcode(code);
+    tvm.setCurrentCode(code);
+
+    onCodeUpgrade(data);
+   }
+
+   function onCodeUpgrade(TvmCell data) private {}
+}

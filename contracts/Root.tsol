@@ -1,0 +1,159 @@
+pragma ever-solidity 0.62.0;
+
+pragma AbiHeader time;
+pragma AbiHeader expire;
+pragma AbiHeader pubkey;
+
+import "broxus-ton-tokens-contracts/contracts/libraries/TokenMsgFlag.tsol";
+
+import "./libraries/PlatformUtils.tsol";
+import "./Platform.tsol";
+import "./ContractToDeploy.tsol";
+
+// Main contract deploys factory contract
+
+contract Root {
+    TvmCell static _platformCode;
+    TvmCell static _contractToDeployCode;
+    uint32 static _nonce;
+
+    address public owner;
+    uint32 version_;
+
+    modifier onlyOwnerOrManager() {
+        require(msg.sender.value != 0 && (msg.sender == owner), 102);
+        _;
+    }
+
+    constructor(address _owner) public {
+        tvm.accept();
+
+        owner = _owner;
+    }
+
+    function dexRoot() public pure returns (address) {
+        return address(this);
+    }
+
+    function _buildContractToDeployInitData(uint64 nonce) internal view returns (TvmCell) {
+        TvmCell params = PlatformUtils.buildContractToDeployParams(nonce);
+
+        TvmCell data = PlatformUtils.buildInitData(
+            address(this),
+            _platformCode,
+            params
+        );
+
+        return data;
+    }
+
+    function expectedVshibAddress(uint64 nonce) public view responsible returns (address) {
+        return {
+            value: 0,
+            flag: 64,
+            bounce: false
+        } address(tvm.hash(_buildContractToDeployInitData(nonce)));
+    }
+
+    function deployContract(uint64 nonce) public view onlyOwnerOrManager returns (address) {
+        TvmCell data = _buildContractToDeployInitData(nonce);
+
+        // Contract Instance
+        address vshib = new Platform{
+            stateInit: data,
+            value: 0,
+            flag: TokenMsgFlag.ALL_NOT_RESERVED,
+            bounce: false
+        }(
+            _contractToDeployCode,
+            0,
+            msg.sender
+        );
+
+        return vshib;
+    }
+
+    function getPlatformCode() public view responsible returns (TvmCell) {
+        return {
+            value: 0,
+            flag: TokenMsgFlag.REMAINING_GAS,
+            bounce: false
+        } _platformCode;
+    }
+
+    function getContractToDeployCode() public view responsible returns (TvmCell) {
+        return {
+            value: 0,
+            flag: TokenMsgFlag.REMAINING_GAS,
+            bounce: false
+        } _contractToDeployCode;
+    }
+
+    //  _   _ ____   ____ ____      _    ____  _____
+    // | | | |  _ \ / ___|  _ \    / \  |  _ \| ____|
+    // | | | | |_) | |  _| |_) |  / _ \ | | | |  _|
+    // | |_| |  __/| |_| |  _ <  / ___ \| |_| | |___
+    //  \___/|_|    \____|_| \_\/_/   \_\____/|_____|
+
+    function upgrade(
+        TvmCell code,
+        optional(uint32) newVersion,
+        address remainingGasTo
+    ) external {
+        if (msg.value >= 3 ever) {
+            uint32 currentVersion = newVersion.hasValue() ? newVersion.get() : version_ + 1;
+
+            TvmCell data = abi.encode(
+                currentVersion,
+                _nonce,
+                _platformCode,
+                _contractToDeployCode,
+                owner,
+                remainingGasTo
+            );
+            
+            tvm.setcode(code);
+            tvm.setCurrentCode(code);
+
+            onCodeUpgrade(data);
+        }
+    }
+
+    function onCodeUpgrade(TvmCell data) private {
+        tvm.resetStorage();
+
+        (uint32 currentVersion, uint32 nonce, TvmCell platformCode, TvmCell contractToDeployCode, address _owner, address remainingGasTo) = abi.decode(
+            data,
+            (
+                uint32,
+                uint32,
+                TvmCell,
+                TvmCell,
+                address,
+                address
+            )
+        );
+
+        version_ = currentVersion;
+        _nonce = nonce;
+        owner = _owner;
+
+        _platformCode = platformCode;
+        _contractToDeployCode = contractToDeployCode;
+
+        remainingGasTo.transfer({
+            value: 0,
+            flag: 128,
+            bounce: false
+        });
+    }
+
+    // onBounce(TvmSlice slice) external {
+    //     totalBounce++;
+    //     uint32 functionId = slice.decode(uint32);
+    //     if (functionId == tvm.functionId(DexRoot.deployVshibDirect)) {
+    //         uint128 latest_bounced_tokens = slice.decode(uint128);
+    //         randomData = latest_bounced_tokens;
+    //     }
+    // }
+}

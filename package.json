@@ -1,0 +1,32 @@
+{
+  "name": "locklift-project",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "test": "npx locklift test --network local"
+  },
+  "author": "",
+  "license": "ISC",
+  "overrides": {
+    "nekoton-wasm": "npm:nekoton-wasm-locklift@1.20.2"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.3.12",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.11.20",
+    "dotenv": "^16.0.3",
+    "everscale-inpage-provider": "^0.3.64",
+    "everscale-standalone-client": "^2.1.24",
+    "prettier": "^3.2.5",
+    "ts-mocha": "^10.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^4.7.4"
+  },
+  "dependencies": {
+    "bignumber.js": "^9.1.2",
+    "broxus-ton-tokens-contracts": "github:broxus/tip3#480c1b4481d1dddb028b408b20ba8c19abd1a4a4",
+    "ever-contracts": "git://github.com/broxus/ever-contracts#0.70.0",
+    "chai": "^4.3.10",
+    "locklift": "^2.9.1"
+  }
+}
